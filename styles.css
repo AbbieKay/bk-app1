@@ -1,0 +1,58 @@
+.custom-scroll::-webkit-scrollbar { width: 8px; }
+.custom-scroll::-webkit-scrollbar-track { background: #1f2937; }
+.custom-scroll::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+
+.score-input {
+  width: 60px; text-align: center; background: #111827;
+  border: 1px solid #374151; border-radius: 6px; padding: 6px;
+  color: white; font-weight: bold; font-size: 16px;
+}
+.score-input:focus { outline: none; border-color: #3b82f6; }
+
+.winner-row { background: rgba(34, 197, 94, 0.1) !important; border-color: #22c55e !important; }
+.winner-row .team-name { color: #22c55e !important; font-weight: 900 !important; }
+.loser-row { opacity: 0.5; }
+
+.mode-badge {
+  position: fixed; top: 12px; right: 12px; z-index: 100;
+  padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
+}
+
+.live-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: #22c55e; margin-right: 6px; animation: pulse 2s infinite;
+}
+
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+@media print { .no-print { display: none !important; } }
+
+.group-card { transition: all 0.2s; }
+.group-card:hover { border-color: #3b82f6; }
+
+.team-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #1f2937; border: 1px solid #374151;
+  padding: 4px 10px; border-radius: 6px; font-size: 13px;
+  margin: 2px;
+}
+.team-chip:hover { background: #374151; }
+
+.game-card {
+  transition: all 0.3s;
+  cursor: pointer;
+}
+.game-card:hover {
+  transform: translateY(-4px);
+  border-color: #3b82f6;
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
+}
+
+.activity-item {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}

@@ -7,40 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-
-  <style>
-    .custom-scroll::-webkit-scrollbar { width: 8px; }
-    .custom-scroll::-webkit-scrollbar-track { background: #1f2937; }
-    .custom-scroll::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-    .score-input {
-      width: 60px; text-align: center; background: #111827;
-      border: 1px solid #374151; border-radius: 6px; padding: 6px;
-      color: white; font-weight: bold; font-size: 16px;
-    }
-    .score-input:focus { outline: none; border-color: #3b82f6; }
-    .winner-row { background: rgba(34, 197, 94, 0.1) !important; border-color: #22c55e !important; }
-    .winner-row .team-name { color: #22c55e !important; font-weight: 900 !important; }
-    .loser-row { opacity: 0.5; }
-    .mode-badge {
-      position: fixed; top: 12px; right: 12px; z-index: 100;
-      padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
-    }
-    .live-dot {
-      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-      background: #22c55e; margin-right: 6px; animation: pulse 2s infinite;
-    }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-    @media print { .no-print { display: none !important; } }
-    .group-card { transition: all 0.2s; }
-    .group-card:hover { border-color: #3b82f6; }
-    .team-chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: #1f2937; border: 1px solid #374151;
-      padding: 4px 10px; border-radius: 6px; font-size: 13px;
-      margin: 2px;
-    }
-    .team-chip:hover { background: #374151; }
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body class="bg-gray-950 text-gray-100 min-h-screen p-4 md:p-8">
@@ -60,6 +27,7 @@
         </div>
 
         <div class="no-print flex flex-wrap gap-2">
+          <button id="dashboardBtn" onclick="showDashboard()" class="hidden bg-gray-800 hover:bg-gray-700 border border-gray-700 px-4 py-2 rounded-lg text-sm">← Dashboard</button>
           <button onclick="copyFixtures()" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 px-4 py-2 rounded-lg text-sm">Copy</button>
           <button onclick="window.print()" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 px-4 py-2 rounded-lg text-sm">Print</button>
           <button id="adminToggleBtn" onclick="toggleAdminMode()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold">Admin Login</button>
@@ -68,1239 +36,154 @@
       </div>
     </header>
 
-    <div id="adminPanel" class="hidden">
-      <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-
-        <aside class="xl:col-span-1 space-y-6">
-
-          <section class="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="text-xl font-bold text-green-400">Organisations</h2>
-              <span class="text-xs bg-gray-800 px-2 py-1 rounded-full"><span id="organisationCount">0</span></span>
-            </div>
-
-            <label class="text-sm text-gray-400">Tournament Name</label>
-            <input id="tournamentNameInput" type="text" oninput="updateTournamentName(this.value)"
-              class="w-full mt-1 mb-3 bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:border-blue-500" />
-
-            <label class="text-sm text-gray-400">Admin Code</label>
-            <input id="adminCodeInput" type="text" oninput="updateAdminCode(this.value)"
-              class="w-full mt-1 mb-4 bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:border-blue-500" />
-
-            <label class="text-sm text-gray-400">Add one organisation</label>
-            <div class="flex gap-2 mt-1 mb-4">
-              <input id="singleOrganisation" type="text" placeholder="e.g. Company A"
-                class="flex-1 bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:border-green-500" />
-              <button onclick="addSingleOrganisation()" class="bg-green-600 hover:bg-green-700 px-4 rounded-lg font-semibold">Add</button>
-            </div>
-
-            <label class="text-sm text-gray-400">Paste list</label>
-            <textarea id="bulkOrganisations" rows="4" placeholder="Company A&#10;Company B"
-              class="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 text-sm focus:outline-none focus:border-green-500"></textarea>
-            <button onclick="addBulkOrganisations()" class="w-full mt-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 p-2 rounded-lg text-sm">Add All</button>
-
-            <div class="mt-4">
-              <label class="text-sm text-gray-400 block mb-1">Upload TXT/CSV</label>
-              <input type="file" accept=".txt,.csv" onchange="handleOrganisationFile(event)"
-                class="w-full text-sm text-gray-400 file:bg-green-600 file:text-white file:border-0 file:rounded-lg file:px-3 file:py-2 file:mr-3 hover:file:bg-green-700" />
-            </div>
-
-            <div class="mt-5">
-              <div class="flex items-center justify-between mb-2">
-                <h3 class="font-semibold text-sm text-gray-300">List</h3>
-                <button onclick="clearAllOrganisations()" class="text-xs text-red-400 hover:text-red-300">Clear</button>
-              </div>
-              <div id="organisationList" class="max-h-64 overflow-y-auto custom-scroll space-y-2 pr-1"></div>
-            </div>
-          </section>
-
-          <section class="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
-            <h2 class="text-xl font-bold text-purple-400 mb-4">Games</h2>
-            <label class="text-sm text-gray-400">Choose game</label>
-            <select id="gameSelect" onchange="selectGame(this.value)"
-              class="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:border-purple-500"></select>
-
-            <div class="mt-4">
-              <label class="text-sm text-gray-400">Add game</label>
-              <div class="flex gap-2 mt-1">
-                <input id="newGameName" type="text" placeholder="e.g. Netball"
-                  class="flex-1 bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:border-purple-500" />
-                <button onclick="addGame()" class="bg-purple-600 hover:bg-purple-700 px-4 rounded-lg font-semibold">Add</button>
-              </div>
-            </div>
-            <button onclick="deleteSelectedGame()" class="w-full mt-4 bg-red-950 hover:bg-red-900 border border-red-900 text-red-300 p-2 rounded-lg text-sm">Delete Game</button>
-          </section>
-        </aside>
-
-        <main class="xl:col-span-3 space-y-6">
-          <section class="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
-                <p class="text-sm text-gray-400">Selected Game</p>
-                <h2 id="selectedGameTitle" class="text-3xl font-black text-white"></h2>
-                <p id="gameStatus" class="text-sm text-gray-400 mt-1"></p>
-              </div>
-              <div class="flex flex-col sm:flex-row gap-3">
-                <div>
-                  <label class="text-xs text-gray-400">Format</label>
-                  <select id="formatSelect" onchange="changeFormat(this.value)"
-                    class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:border-blue-500">
-                    <option value="knockout">Knockout</option>
-                    <option value="roundRobin">Round Robin</option>
-                    <option value="groupStage">Group Stage</option>
-                  </select>
-                </div>
-                <div class="flex items-end">
-                  <button onclick="runRandomSeedDraw()"
-                    class="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-3 rounded-xl font-black shadow-lg">
-                    🎲 Draw
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="mt-6 border-t border-gray-800 pt-5">
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-                <h3 class="text-lg font-bold text-blue-400">Participants</h3>
-                <div class="flex gap-2">
-                  <button onclick="selectAllParticipants()" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-2 rounded-lg text-sm">All</button>
-                  <button onclick="clearParticipants()" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-2 rounded-lg text-sm">Clear</button>
-                </div>
-              </div>
-              <div class="mb-3 text-sm text-gray-400">Selected: <span id="participantCount" class="font-bold text-white">0</span></div>
-              <div id="participantsList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-72 overflow-y-auto custom-scroll pr-1"></div>
-            </div>
-          </section>
-
-          <section id="groupAssignmentSection" class="hidden bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="text-2xl font-black text-purple-400">Manual Group Assignment</h2>
-              <button onclick="addNewGroup()" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-semibold">+ Add Group</button>
-            </div>
-            <p class="text-sm text-gray-400 mb-4">Assign teams to groups manually. Click the arrow buttons to move teams between groups.</p>
-            <div id="groupAssignmentArea" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-          </section>
-        </main>
-      </div>
+    <div id="dashboardView">
+      <div id="dashboardContent"></div>
     </div>
 
-    <section class="grid grid-cols-1 2xl:grid-cols-5 gap-6 mt-6">
-      <div class="2xl:col-span-2 bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-2xl font-black text-green-400">Seeds</h2>
-          <button id="clearResultsBtn" onclick="clearAllResults()" class="hidden no-print bg-red-950 hover:bg-red-900 border border-red-900 text-red-300 px-3 py-1 rounded-lg text-xs">Clear Results</button>
+    <div id="gameDetailView" class="hidden">
+      <div id="adminPanel" class="hidden">
+        <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+
+          <aside class="xl:col-span-1 space-y-6">
+
+            <section class="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-green-400">Organisations</h2>
+                <span class="text-xs bg-gray-800 px-2 py-1 rounded-full"><span id="organisationCount">0</span></span>
+              </div>
+
+              <label class="text-sm text-gray-400">Tournament Name</label>
+              <input id="tournamentNameInput" type="text" oninput="updateTournamentName(this.value)"
+                class="w-full mt-1 mb-3 bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:border-blue-500" />
+
+              <label class="text-sm text-gray-400">Admin Code</label>
+              <input id="adminCodeInput" type="text" oninput="updateAdminCode(this.value)"
+                class="w-full mt-1 mb-4 bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:border-blue-500" />
+
+              <label class="text-sm text-gray-400">Add one organisation</label>
+              <div class="flex gap-2 mt-1 mb-4">
+                <input id="singleOrganisation" type="text" placeholder="e.g. Company A"
+                  class="flex-1 bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:border-green-500" />
+                <button onclick="addSingleOrganisation()" class="bg-green-600 hover:bg-green-700 px-4 rounded-lg font-semibold">Add</button>
+              </div>
+
+              <label class="text-sm text-gray-400">Paste list</label>
+              <textarea id="bulkOrganisations" rows="4" placeholder="Company A&#10;Company B"
+                class="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 text-sm focus:outline-none focus:border-green-500"></textarea>
+              <button onclick="addBulkOrganisations()" class="w-full mt-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 p-2 rounded-lg text-sm">Add All</button>
+
+              <div class="mt-4">
+                <label class="text-sm text-gray-400 block mb-1">Upload TXT/CSV</label>
+                <input type="file" accept=".txt,.csv" onchange="handleOrganisationFile(event)"
+                  class="w-full text-sm text-gray-400 file:bg-green-600 file:text-white file:border-0 file:rounded-lg file:px-3 file:py-2 file:mr-3 hover:file:bg-green-700" />
+              </div>
+
+              <div class="mt-5">
+                <div class="flex items-center justify-between mb-2">
+                  <h3 class="font-semibold text-sm text-gray-300">List</h3>
+                  <button onclick="clearAllOrganisations()" class="text-xs text-red-400 hover:text-red-300">Clear</button>
+                </div>
+                <div id="organisationList" class="max-h-64 overflow-y-auto custom-scroll space-y-2 pr-1"></div>
+              </div>
+            </section>
+
+            <section class="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
+              <h2 class="text-xl font-bold text-purple-400 mb-4">Games</h2>
+              <label class="text-sm text-gray-400">Choose game</label>
+              <select id="gameSelect" onchange="selectGame(this.value)"
+                class="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:border-purple-500"></select>
+
+              <div class="mt-4">
+                <label class="text-sm text-gray-400">Add game</label>
+                <div class="flex gap-2 mt-1">
+                  <input id="newGameName" type="text" placeholder="e.g. Netball"
+                    class="flex-1 bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:border-purple-500" />
+                  <button onclick="addGame()" class="bg-purple-600 hover:bg-purple-700 px-4 rounded-lg font-semibold">Add</button>
+                </div>
+              </div>
+              <button onclick="deleteSelectedGame()" class="w-full mt-4 bg-red-950 hover:bg-red-900 border border-red-900 text-red-300 p-2 rounded-lg text-sm">Delete Game</button>
+            </section>
+          </aside>
+
+          <main class="xl:col-span-3 space-y-6">
+            <section class="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
+              <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                  <p class="text-sm text-gray-400">Selected Game</p>
+                  <h2 id="selectedGameTitle" class="text-3xl font-black text-white"></h2>
+                  <p id="gameStatus" class="text-sm text-gray-400 mt-1"></p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                  <div>
+                    <label class="text-xs text-gray-400">Format</label>
+                    <select id="formatSelect" onchange="changeFormat(this.value)"
+                      class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:border-blue-500">
+                      <option value="knockout">Knockout</option>
+                      <option value="roundRobin">Round Robin</option>
+                      <option value="groupStage">Group Stage</option>
+                    </select>
+                  </div>
+                  <div class="flex items-end">
+                    <button onclick="runRandomSeedDraw()"
+                      class="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-3 rounded-xl font-black shadow-lg">
+                      🎲 Draw
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-6 border-t border-gray-800 pt-5">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                  <h3 class="text-lg font-bold text-blue-400">Participants</h3>
+                  <div class="flex gap-2">
+                    <button onclick="selectAllParticipants()" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-2 rounded-lg text-sm">All</button>
+                    <button onclick="clearParticipants()" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-2 rounded-lg text-sm">Clear</button>
+                  </div>
+                </div>
+                <div class="mb-3 text-sm text-gray-400">Selected: <span id="participantCount" class="font-bold text-white">0</span></div>
+                <div id="participantsList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-72 overflow-y-auto custom-scroll pr-1"></div>
+              </div>
+            </section>
+
+            <section id="groupAssignmentSection" class="hidden bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-black text-purple-400">Manual Group Assignment</h2>
+                <button onclick="addNewGroup()" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-semibold">+ Add Group</button>
+              </div>
+              <p class="text-sm text-gray-400 mb-4">Assign teams to groups manually. Click the arrow buttons to move teams between groups.</p>
+              <div id="groupAssignmentArea" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </section>
+          </main>
         </div>
-        <div id="seedsArea"></div>
       </div>
 
-      <div class="2xl:col-span-3 bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
-        <h2 class="text-2xl font-black text-blue-400 mb-4">Fixtures</h2>
-        <div id="fixturesArea"></div>
-      </div>
-    </section>
+      <section class="grid grid-cols-1 2xl:grid-cols-5 gap-6 mt-6">
+        <div class="2xl:col-span-2 bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-2xl font-black text-green-400">Seeds</h2>
+            <button id="clearResultsBtn" onclick="clearAllResults()" class="hidden no-print bg-red-950 hover:bg-red-900 border border-red-900 text-red-300 px-3 py-1 rounded-lg text-xs">Clear Results</button>
+          </div>
+          <div id="seedsArea"></div>
+        </div>
 
-    <section id="standingsSection" class="hidden mt-6 bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
-      <h2 class="text-2xl font-black text-amber-400 mb-4">Standings</h2>
-      <div id="standingsArea"></div>
-    </section>
+        <div class="2xl:col-span-3 bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
+          <h2 class="text-2xl font-black text-blue-400 mb-4">Fixtures</h2>
+          <div id="fixturesArea"></div>
+        </div>
+      </section>
+
+      <section id="standingsSection" class="hidden mt-6 bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
+        <h2 class="text-2xl font-black text-amber-400 mb-4">Standings</h2>
+        <div id="standingsArea"></div>
+      </section>
+    </div>
 
   </div>
 
-  <script>
-    const firebaseConfig = {
-    apiKey: "AIzaSyAAt7HzzcC08r6ClOHJH4ZMo9MwG_oaCL4",
-    authDomain: "bk-gala-427f8.firebaseapp.com",
-    projectId: "bk-gala-427f8",
-    storageBucket: "bk-gala-427f8.firebasestorage.app",
-    messagingSenderId: "494503454215",
-    appId: "1:494503454215:web:cda1e0c0fbb845dfaf2ca2",
-    measurementId: "G-M3VCK213NP"
-
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const TOURNAMENT_DOC = "config/main";
-
-    let state = defaultState();
-    let isAdmin = false;
-    let unsubscribe = null;
-
-    function defaultState() {
-      const games = ["Football", "Basketball", "Volleyball", "Table Tennis", "Chess", "FIFA"].map(name => ({
-        id: makeId("game"), name, format: "knockout",
-        participantIds: [], seeds: [], groups: null, fixtures: null, drawnAt: null
-      }));
-      return {
-        tournamentName: "EMIZANNYO GY'EBITONGOLE BY'OBWAKABAKA",
-        adminCode: "admin123",
-        organisations: [],
-        games,
-        selectedGameId: games[0].id
-      };
-    }
-
-    function makeId(prefix) {
-      return prefix + "_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 9);
-    }
-
-    function esc(value) {
-      return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
-    }
-
-    function getSelectedGame() {
-      let game = state.games.find(g => g.id === state.selectedGameId);
-      if (!game && state.games.length > 0) {
-        game = state.games[0];
-        state.selectedGameId = game.id;
-      }
-      return game;
-    }
-
-    async function initTournament() {
-      const docRef = db.doc(TOURNAMENT_DOC);
-      const snap = await docRef.get();
-      if (!snap.exists) {
-        await docRef.set(state);
-      } else {
-        state = snap.data();
-      }
-      subscribeToTournament();
-      renderAll();
-    }
-
-    function subscribeToTournament() {
-      if (unsubscribe) unsubscribe();
-      unsubscribe = db.doc(TOURNAMENT_DOC).onSnapshot((snap) => {
-        if (snap.exists) {
-          state = snap.data();
-          renderAll();
-        }
-      }, (err) => console.error("Firestore error:", err));
-    }
-
-    async function saveToFirestore() {
-      if (!isAdmin) return;
-      try {
-        await db.doc(TOURNAMENT_DOC).set(state);
-      } catch (err) {
-        console.error("Save error:", err);
-        alert("Could not save.");
-      }
-    }
-
-    function toggleAdminMode() {
-      if (isAdmin) {
-        isAdmin = false;
-        updateModeUI();
-        return;
-      }
-      const code = prompt("Enter admin code:");
-      if (!code) return;
-      if (code === state.adminCode) {
-        isAdmin = true;
-        updateModeUI();
-      } else {
-        alert("Incorrect admin code.");
-      }
-    }
-
-    function updateModeUI() {
-      const badge = document.getElementById("modeBadge");
-      const label = document.getElementById("modeLabel");
-      const adminPanel = document.getElementById("adminPanel");
-      const btn = document.getElementById("adminToggleBtn");
-      const clearBtn = document.getElementById("clearResultsBtn");
-
-      if (isAdmin) {
-        badge.className = "mode-badge bg-amber-600 text-white no-print";
-        label.textContent = "Admin Mode";
-        adminPanel.classList.remove("hidden");
-        btn.textContent = "Exit Admin";
-        btn.className = "bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-semibold no-print";
-        clearBtn.classList.remove("hidden");
-      } else {
-        badge.className = "mode-badge bg-gray-800 text-gray-300 border border-gray-700 no-print";
-        label.textContent = "Viewer Mode";
-        adminPanel.classList.add("hidden");
-        btn.textContent = "Admin Login";
-        btn.className = "bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold no-print";
-        clearBtn.classList.add("hidden");
-      }
-    }
-
-    function shareLink() {
-      const url = window.location.href.split("?")[0];
-      navigator.clipboard.writeText(url)
-        .then(() => alert("Viewer link copied!\n\n" + url))
-        .catch(() => prompt("Copy this link:", url));
-    }
-
-    function updateTournamentName(value) {
-      state.tournamentName = value.trim() || "Tournament";
-      saveToFirestore();
-    }
-
-    function updateAdminCode(value) {
-      if (value.trim()) state.adminCode = value.trim();
-      saveToFirestore();
-    }
-
-    function addSingleOrganisation() {
-      const input = document.getElementById("singleOrganisation");
-      const name = input.value.trim();
-      if (!name) return;
-      const result = addOrganisationsFromText(name);
-      input.value = "";
-      if (result.added === 0) alert("Already exists.");
-      saveToFirestore();
-      renderAll();
-    }
-
-    function addBulkOrganisations() {
-      const textarea = document.getElementById("bulkOrganisations");
-      const result = addOrganisationsFromText(textarea.value);
-      textarea.value = "";
-      alert(result.added + " added. " + result.skipped + " skipped.");
-      saveToFirestore();
-      renderAll();
-    }
-
-    function handleOrganisationFile(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const result = addOrganisationsFromText(e.target.result);
-        alert(result.added + " added. " + result.skipped + " skipped.");
-        event.target.value = "";
-        saveToFirestore();
-        renderAll();
-      };
-      reader.readAsText(file);
-    }
-
-    function cleanOrganisationLine(line) {
-      let value = line.trim();
-      if (!value) return "";
-      value = value.split(",")[0].trim();
-      if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1).trim();
-      value = value.replace(/\s+/g, " ").trim();
-      const skipped = ["organisation", "organisations", "organization", "organizations", "name", "team"];
-      if (skipped.includes(value.toLowerCase())) return "";
-      return value;
-    }
-
-    function addOrganisationsFromText(text) {
-      const existing = new Set(state.organisations.map(o => o.name.toLowerCase()));
-      const lines = String(text).split(/\r?\n/);
-      let added = 0, skipped = 0;
-      lines.forEach(line => {
-        const name = cleanOrganisationLine(line);
-        if (!name) { skipped++; return; }
-        const key = name.toLowerCase();
-        if (existing.has(key)) { skipped++; return; }
-        state.organisations.push({ id: makeId("org"), name });
-        existing.add(key);
-        added++;
-      });
-      return { added, skipped };
-    }
-
-    function removeOrganisation(id) {
-      const org = state.organisations.find(o => o.id === id);
-      if (!org) return;
-      if (!confirm("Remove " + org.name + "?")) return;
-      state.organisations = state.organisations.filter(o => o.id !== id);
-      state.games.forEach(game => {
-        if (game.participantIds.includes(id)) {
-          game.participantIds = game.participantIds.filter(pid => pid !== id);
-          game.seeds = []; game.groups = null; game.fixtures = null; game.drawnAt = null;
-        }
-      });
-      saveToFirestore();
-      renderAll();
-    }
-
-    function clearAllOrganisations() {
-      if (!confirm("Clear all organisations and draws?")) return;
-      state.organisations = [];
-      state.games.forEach(g => { g.participantIds = []; g.seeds = []; g.groups = null; g.fixtures = null; g.drawnAt = null; });
-      saveToFirestore();
-      renderAll();
-    }
-
-    function selectGame(id) {
-      state.selectedGameId = id;
-      saveToFirestore();
-      renderAll();
-    }
-
-    function addGame() {
-      const input = document.getElementById("newGameName");
-      const name = input.value.trim();
-      if (!name) { alert("Enter a game name."); return; }
-      const newGame = {
-        id: makeId("game"), name, format: "knockout",
-        participantIds: [], seeds: [], groups: null, fixtures: null, drawnAt: null
-      };
-      state.games.push(newGame);
-      state.selectedGameId = newGame.id;
-      input.value = "";
-      saveToFirestore();
-      renderAll();
-    }
-
-    function deleteSelectedGame() {
-      if (state.games.length <= 1) { alert("Need at least one game."); return; }
-      const game = getSelectedGame();
-      if (!confirm("Delete " + game.name + "?")) return;
-      state.games = state.games.filter(g => g.id !== game.id);
-      state.selectedGameId = state.games[0].id;
-      saveToFirestore();
-      renderAll();
-    }
-
-    function changeFormat(format) {
-      const game = getSelectedGame();
-      game.format = format;
-      game.seeds = []; game.groups = null; game.fixtures = null; game.drawnAt = null;
-      
-      if (format === "groupStage" && !game.groups) {
-        game.groups = [];
-      }
-      
-      saveToFirestore();
-      renderAll();
-    }
-
-    function toggleParticipant(orgId, checked) {
-      const game = getSelectedGame();
-      const selected = new Set(game.participantIds);
-      if (checked) selected.add(orgId); else selected.delete(orgId);
-      game.participantIds = state.organisations.filter(o => selected.has(o.id)).map(o => o.id);
-      game.seeds = []; game.groups = null; game.fixtures = null; game.drawnAt = null;
-      saveToFirestore();
-      renderAll();
-    }
-
-    function selectAllParticipants() {
-      const game = getSelectedGame();
-      game.participantIds = state.organisations.map(o => o.id);
-      game.seeds = []; game.groups = null; game.fixtures = null; game.drawnAt = null;
-      saveToFirestore();
-      renderAll();
-    }
-
-    function clearParticipants() {
-      const game = getSelectedGame();
-      game.participantIds = []; game.seeds = []; game.groups = null; game.fixtures = null; game.drawnAt = null;
-      saveToFirestore();
-      renderAll();
-    }
-
-    function addNewGroup() {
-      const game = getSelectedGame();
-      if (!game.groups) game.groups = [];
-      
-      const groupNumber = game.groups.length + 1;
-      const groupName = "Group " + String.fromCharCode(64 + groupNumber);
-      
-      game.groups.push({
-        name: groupName,
-        teams: []
-      });
-      
-      saveToFirestore();
-      renderAll();
-    }
-
-    function deleteGroup(groupIndex) {
-      const game = getSelectedGame();
-      if (!game.groups) return;
-      
-      if (!confirm("Delete " + game.groups[groupIndex].name + "?")) return;
-      
-      game.groups.splice(groupIndex, 1);
-      game.fixtures = null;
-      game.drawnAt = null;
-      
-      saveToFirestore();
-      renderAll();
-    }
-
-    function renameGroup(groupIndex, newName) {
-      const game = getSelectedGame();
-      if (!game.groups) return;
-      
-      game.groups[groupIndex].name = newName.trim() || game.groups[groupIndex].name;
-      
-      saveToFirestore();
-      renderAll();
-    }
-
-    function assignTeamToGroup(orgId, groupIndex) {
-      const game = getSelectedGame();
-      if (!game.groups) return;
-      
-      game.groups.forEach(group => {
-        group.teams = group.teams.filter(t => t.orgId !== orgId);
-      });
-      
-      const org = state.organisations.find(o => o.id === orgId);
-      if (org) {
-        game.groups[groupIndex].teams.push({
-          orgId: org.id,
-          name: org.name
-        });
-      }
-      
-      game.fixtures = null;
-      game.drawnAt = null;
-      
-      saveToFirestore();
-      renderAll();
-    }
-
-    function removeTeamFromGroup(orgId, groupIndex) {
-      const game = getSelectedGame();
-      if (!game.groups) return;
-      
-      game.groups[groupIndex].teams = game.groups[groupIndex].teams.filter(t => t.orgId !== orgId);
-      game.fixtures = null;
-      game.drawnAt = null;
-      
-      saveToFirestore();
-      renderAll();
-    }
-
-    function generateFixturesFromGroups() {
-      const game = getSelectedGame();
-      if (!game.groups || game.groups.length === 0) return;
-      
-      let seedCounter = 1;
-      game.seeds = [];
-      game.groups.forEach(group => {
-        group.teams.forEach(team => {
-          game.seeds.push({
-            seed: seedCounter++,
-            orgId: team.orgId,
-            name: team.name
-          });
-        });
-      });
-      
-      const allRounds = [];
-      game.groups.forEach((group, groupIndex) => {
-        if (group.teams.length < 2) return;
-        
-        const groupFixtures = generateRoundRobinFixtures(group.teams.map(t => ({
-          seed: game.seeds.find(s => s.orgId === t.orgId).seed,
-          orgId: t.orgId,
-          name: t.name
-        })));
-        
-        groupFixtures.rounds.forEach(round => {
-          round.name = group.name + " - " + round.name;
-          round.groupIndex = groupIndex;
-          round.groupName = group.name;
-        });
-        
-        allRounds.push(...groupFixtures.rounds);
-      });
-      
-      game.fixtures = { type: "groupStage", rounds: allRounds, groups: game.groups };
-      game.drawnAt = new Date().toLocaleString();
-      
-      saveToFirestore();
-      renderAll();
-    }
-
-    function runRandomSeedDraw() {
-      const game = getSelectedGame();
-      
-      if (game.format === "groupStage") {
-        if (!game.groups || game.groups.length === 0) {
-          alert("Please create groups and assign teams first.");
-          return;
-        }
-        
-        const allAssignedTeams = game.groups.flatMap(g => g.teams);
-        if (allAssignedTeams.length < 2) {
-          alert("Please assign at least 2 teams to groups.");
-          return;
-        }
-        
-        if (game.fixtures && !confirm("Regenerate fixtures?")) return;
-        
-        generateFixturesFromGroups();
-      } else {
-        const participants = game.participantIds.map(id => state.organisations.find(o => o.id === id)).filter(Boolean);
-        if (participants.length < 2) { alert("Select at least 2 organisations."); return; }
-        if (game.seeds.length > 0 && !confirm("Redraw and replace?")) return;
-
-        const shuffled = shuffleArray(participants);
-        game.seeds = shuffled.map((org, i) => ({ seed: i + 1, orgId: org.id, name: org.name }));
-        game.groups = null;
-        game.fixtures = generateFixtures(game);
-        game.drawnAt = new Date().toLocaleString();
-        saveToFirestore();
-        renderAll();
-      }
-    }
-
-    function shuffleArray(array) {
-      const copy = [...array];
-      for (let i = copy.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [copy[i], copy[j]] = [copy[j], copy[i]];
-      }
-      return copy;
-    }
-
-    function generateFixtures(game) {
-      if (game.format === "roundRobin") return generateRoundRobinFixtures(game.seeds);
-      return generateKnockoutFixtures(game.seeds);
-    }
-
-    function seedSlot(s) { return { orgId: s.orgId, name: s.name, seed: s.seed, placeholder: false, bye: false }; }
-    function byeSlot() { return { name: "BYE", seed: null, placeholder: false, bye: true }; }
-
-    function makeMatch(round, number, teamA, teamB, groupName) {
-      const a = teamA || byeSlot();
-      const b = teamB || byeSlot();
-      const isBye = a.bye || b.bye;
-      let note = "";
-      if (isBye && !a.bye) note = a.name + " advances automatically.";
-      if (isBye && !b.bye) note = b.name + " advances automatically.";
-      return {
-        id: "R" + round + "M" + number, label: "R" + round + " M" + number,
-        round, number, teamA: a, teamB: b, bye: isBye, note, result: null,
-        groupName: groupName || null
-      };
-    }
-
-    function nextPowerOfTwo(n) { let s = 1; while (s < n) s *= 2; return s; }
-
-    function standardSeedOrder(size) {
-      let order = [1];
-      while (order.length < size) {
-        const next = [];
-        const total = order.length * 2 + 1;
-        order.forEach(seed => { next.push(seed); next.push(total - seed); });
-        order = next;
-      }
-      return order;
-    }
-
-    function knockoutRoundName(matchCount) {
-      if (matchCount === 1) return "Final";
-      if (matchCount === 2) return "Semi-finals";
-      if (matchCount === 4) return "Quarter-finals";
-      return "Round of " + matchCount * 2;
-    }
-
-    function generateKnockoutFixtures(seeds) {
-      const bracketSize = nextPowerOfTwo(seeds.length);
-      const order = standardSeedOrder(bracketSize);
-      const slots = order.map(n => {
-        const s = seeds[n - 1];
-        return s ? seedSlot(s) : null;
-      });
-
-      const rounds = [];
-      let currentRound = [];
-      for (let i = 0; i < slots.length; i += 2) {
-        currentRound.push(makeMatch(1, i / 2 + 1, slots[i], slots[i + 1]));
-      }
-      rounds.push({ name: knockoutRoundName(currentRound.length), matches: currentRound });
-
-      let prev = currentRound;
-      let rn = 2;
-      while (prev.length > 1) {
-        const next = [];
-        for (let i = 0; i < prev.length; i += 2) {
-          const tA = { name: "Winner " + prev[i].label, seed: null, placeholder: true, bye: false };
-          const tB = { name: "Winner " + prev[i + 1].label, seed: null, placeholder: true, bye: false };
-          next.push(makeMatch(rn, i / 2 + 1, tA, tB));
-        }
-        rounds.push({ name: knockoutRoundName(next.length), matches: next });
-        prev = next;
-        rn++;
-      }
-      return { type: "knockout", bracketSize, rounds };
-    }
-
-    function generateRoundRobinFixtures(seeds) {
-      let teams = seeds.map(seedSlot);
-      if (teams.length % 2 !== 0) teams.push(byeSlot());
-      const totalRounds = teams.length - 1;
-      const rounds = [];
-      let rotation = [...teams];
-      for (let round = 1; round <= totalRounds; round++) {
-        const matches = [];
-        let mn = 1;
-        for (let i = 0; i < rotation.length / 2; i++) {
-          const a = rotation[i];
-          const b = rotation[rotation.length - 1 - i];
-          if (!a.bye && !b.bye) { matches.push(makeMatch(round, mn, a, b)); mn++; }
-        }
-        rounds.push({ name: "Round " + round, matches });
-        rotation = [rotation[0], rotation[rotation.length - 1], ...rotation.slice(1, -1)];
-      }
-      return { type: "roundRobin", rounds };
-    }
-
-    function updateMatchResult(roundIndex, matchIndex, field, value) {
-      const game = getSelectedGame();
-      if (!game.fixtures) return;
-      const match = game.fixtures.rounds[roundIndex].matches[matchIndex];
-      if (!match.result) match.result = { scoreA: null, scoreB: null };
-      match.result[field] = (value === "" || value === null) ? null : parseInt(value);
-
-      if (game.fixtures.type === "knockout") recalculateKnockoutBracket(game);
-      saveToFirestore();
-      renderAll();
-    }
-
-    function recalculateKnockoutBracket(game) {
-      for (let r = 1; r < game.fixtures.rounds.length; r++) {
-        const prev = game.fixtures.rounds[r - 1];
-        const curr = game.fixtures.rounds[r];
-        for (let m = 0; m < curr.matches.length; m++) {
-          curr.matches[m].teamA = getAdvancementSlot(prev.matches[m * 2]);
-          curr.matches[m].teamB = getAdvancementSlot(prev.matches[m * 2 + 1]);
-        }
-      }
-    }
-
-    function getAdvancementSlot(match) {
-      if (match.bye) {
-        if (!match.teamA.bye) return match.teamA;
-        if (!match.teamB.bye) return match.teamB;
-      }
-      if (!match.result || match.result.scoreA === null || match.result.scoreB === null) {
-        return { name: "Winner " + match.label, seed: null, placeholder: true, bye: false };
-      }
-      if (match.result.scoreA > match.result.scoreB) return { ...match.teamA, advanced: true };
-      if (match.result.scoreB > match.result.scoreA) return { ...match.teamB, advanced: true };
-      return { name: "Draw (" + match.label + ")", seed: null, placeholder: true, bye: false };
-    }
-
-    function clearAllResults() {
-      const game = getSelectedGame();
-      if (!game.fixtures) return;
-      if (!confirm("Clear all results for " + game.name + "?")) return;
-      game.fixtures.rounds.forEach(r => r.matches.forEach(m => m.result = null));
-      if (game.fixtures.type === "knockout") {
-        for (let r = 1; r < game.fixtures.rounds.length; r++) {
-          const prev = game.fixtures.rounds[r - 1];
-          const curr = game.fixtures.rounds[r];
-          for (let m = 0; m < curr.matches.length; m++) {
-            curr.matches[m].teamA = { name: "Winner " + prev.matches[m * 2].label, seed: null, placeholder: true, bye: false };
-            curr.matches[m].teamB = { name: "Winner " + prev.matches[m * 2 + 1].label, seed: null, placeholder: true, bye: false };
-          }
-        }
-      }
-      saveToFirestore();
-      renderAll();
-    }
-
-    function calculateGroupStandings(game) {
-      if (!game.groups) return [];
-      const allStandings = [];
-      game.groups.forEach(group => {
-        const standings = {};
-        group.teams.forEach(t => {
-          standings[t.orgId] = { orgId: t.orgId, name: t.name, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 };
-        });
-        game.fixtures.rounds.filter(r => r.groupName === group.name).forEach(r => {
-          r.matches.forEach(m => {
-            if (m.result && m.result.scoreA !== null && m.result.scoreB !== null) {
-              const a = standings[m.teamA.orgId];
-              const b = standings[m.teamB.orgId];
-              if (a && b) {
-                a.played++; b.played++;
-                a.goalsFor += m.result.scoreA; a.goalsAgainst += m.result.scoreB;
-                b.goalsFor += m.result.scoreB; b.goalsAgainst += m.result.scoreA;
-                if (m.result.scoreA > m.result.scoreB) { a.won++; a.points += 3; b.lost++; }
-                else if (m.result.scoreB > m.result.scoreA) { b.won++; b.points += 3; a.lost++; }
-                else { a.drawn++; b.drawn++; a.points += 1; b.points += 1; }
-              }
-            }
-          });
-        });
-        const sorted = Object.values(standings).sort((a, b) => {
-          if (b.points !== a.points) return b.points - a.points;
-          const gdA = a.goalsFor - a.goalsAgainst;
-          const gdB = b.goalsFor - b.goalsAgainst;
-          if (gdB !== gdA) return gdB - gdA;
-          return b.goalsFor - a.goalsFor;
-        });
-        allStandings.push({ groupName: group.name, standings: sorted });
-      });
-      return allStandings;
-    }
-
-    function calculateRoundRobinStandings(game) {
-      const standings = {};
-      game.seeds.forEach(s => {
-        standings[s.orgId] = { orgId: s.orgId, name: s.name, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 };
-      });
-      game.fixtures.rounds.forEach(r => {
-        r.matches.forEach(m => {
-          if (m.result && m.result.scoreA !== null && m.result.scoreB !== null) {
-            const a = standings[m.teamA.orgId];
-            const b = standings[m.teamB.orgId];
-            if (a && b) {
-              a.played++; b.played++;
-              a.goalsFor += m.result.scoreA; a.goalsAgainst += m.result.scoreB;
-              b.goalsFor += m.result.scoreB; b.goalsAgainst += m.result.scoreA;
-              if (m.result.scoreA > m.result.scoreB) { a.won++; a.points += 3; b.lost++; }
-              else if (m.result.scoreB > m.result.scoreA) { b.won++; b.points += 3; a.lost++; }
-              else { a.drawn++; b.drawn++; a.points += 1; b.points += 1; }
-            }
-          }
-        });
-      });
-      return Object.values(standings).sort((a, b) => {
-        if (b.points !== a.points) return b.points - a.points;
-        const gdA = a.goalsFor - a.goalsAgainst;
-        const gdB = b.goalsFor - b.goalsAgainst;
-        if (gdB !== gdA) return gdB - gdA;
-        return b.goalsFor - a.goalsFor;
-      });
-    }
-
-    function renderAll() {
-      const game = getSelectedGame();
-
-      document.getElementById("tournamentTitle").textContent = state.tournamentName;
-      if (isAdmin) {
-        document.getElementById("tournamentNameInput").value = state.tournamentName;
-        document.getElementById("adminCodeInput").value = state.adminCode;
-        renderGames();
-        renderOrganisations();
-        renderParticipants();
-        document.getElementById("selectedGameTitle").textContent = game.name;
-        document.getElementById("formatSelect").value = game.format;
-
-        const groupSection = document.getElementById("groupAssignmentSection");
-        if (game.format === "groupStage") {
-          groupSection.classList.remove("hidden");
-          renderGroupAssignment();
-        } else {
-          groupSection.classList.add("hidden");
-        }
-
-        const status = game.participantIds.length + " selected. " +
-          (game.seeds.length > 0 ? "Drawn." : "No draw.") +
-          (game.drawnAt ? " Last: " + game.drawnAt : "");
-        document.getElementById("gameStatus").textContent = status;
-      }
-
-      renderSeeds();
-      renderFixtures();
-      renderStandings();
-    }
-
-    function renderGames() {
-      const select = document.getElementById("gameSelect");
-      select.innerHTML = state.games.map(g => '<option value="' + g.id + '">' + esc(g.name) + "</option>").join("");
-      select.value = state.selectedGameId;
-    }
-
-    function renderOrganisations() {
-      const list = document.getElementById("organisationList");
-      document.getElementById("organisationCount").textContent = state.organisations.length;
-      if (state.organisations.length === 0) {
-        list.innerHTML = '<p class="text-sm text-gray-500 text-center py-6">No organisations yet.</p>';
-        return;
-      }
-      list.innerHTML = state.organisations.map(o => `
-        <div class="flex items-center justify-between gap-2 bg-gray-800 border border-gray-700 rounded-lg p-2">
-          <span class="text-sm">${esc(o.name)}</span>
-          <button onclick="removeOrganisation('${o.id}')" class="text-red-400 hover:text-red-300 text-xs px-2">✕</button>
-        </div>
-      `).join("");
-    }
-
-    function renderParticipants() {
-      const game = getSelectedGame();
-      const container = document.getElementById("participantsList");
-      document.getElementById("participantCount").textContent = game.participantIds.length;
-      if (state.organisations.length === 0) {
-        container.innerHTML = '<p class="text-sm text-gray-500 col-span-full py-6 text-center">Upload organisations first.</p>';
-        return;
-      }
-      container.innerHTML = state.organisations.map(o => {
-        const checked = game.participantIds.includes(o.id) ? "checked" : "";
-        return `
-          <label class="flex items-center gap-3 bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer">
-            <input type="checkbox" ${checked} onchange="toggleParticipant('${o.id}', this.checked)" class="w-4 h-4" />
-            <span class="text-sm">${esc(o.name)}</span>
-          </label>
-        `;
-      }).join("");
-    }
-
-    function renderGroupAssignment() {
-      const game = getSelectedGame();
-      const area = document.getElementById("groupAssignmentArea");
-
-      if (!game.groups || game.groups.length === 0) {
-        area.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">No groups created yet. Click "+ Add Group" to start.</p>';
-        return;
-      }
-
-      const assignedOrgIds = new Set(game.groups.flatMap(g => g.teams.map(t => t.orgId)));
-      const unassignedTeams = game.participantIds
-        .filter(id => !assignedOrgIds.has(id))
-        .map(id => state.organisations.find(o => o.id === id))
-        .filter(Boolean);
-
-      let html = '';
-
-      html += `
-        <div class="bg-gray-800 border-2 border-dashed border-gray-700 rounded-xl p-4 group-card">
-          <h3 class="font-bold text-amber-400 mb-3">Unassigned Teams (${unassignedTeams.length})</h3>
-          <div class="min-h-[100px]">
-      `;
-
-      if (unassignedTeams.length === 0) {
-        html += '<p class="text-xs text-gray-500 text-center py-4">All teams assigned</p>';
-      } else {
-        unassignedTeams.forEach(org => {
-          html += `
-            <div class="team-chip">
-              <span>${esc(org.name)}</span>
-              <div class="flex gap-1">
-          `;
-          game.groups.forEach((group, gi) => {
-            html += `<button onclick="assignTeamToGroup('${org.id}', ${gi})" class="text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded" title="Add to ${esc(group.name)}">→${esc(group.name.replace('Group ', ''))}</button>`;
-          });
-          html += `</div></div>`;
-        });
-      }
-
-      html += `</div></div>`;
-
-      game.groups.forEach((group, groupIndex) => {
-        html += `
-          <div class="bg-gray-800 border border-gray-700 rounded-xl p-4 group-card">
-            <div class="flex items-center justify-between mb-3">
-              <input type="text" value="${esc(group.name)}" onchange="renameGroup(${groupIndex}, this.value)"
-                class="bg-transparent font-bold text-purple-400 border-b border-transparent hover:border-gray-600 focus:border-purple-500 focus:outline-none text-lg" />
-              <button onclick="deleteGroup(${groupIndex})" class="text-red-400 hover:text-red-300 text-xs">✕</button>
-            </div>
-            <div class="min-h-[100px]">
-        `;
-
-        if (group.teams.length === 0) {
-          html += '<p class="text-xs text-gray-500 text-center py-4">No teams assigned</p>';
-        } else {
-          group.teams.forEach(team => {
-            html += `
-              <div class="team-chip">
-                <span>${esc(team.name)}</span>
-                <button onclick="removeTeamFromGroup('${team.orgId}', ${groupIndex})" class="text-red-400 hover:text-red-300 text-xs">✕</button>
-              </div>
-            `;
-          });
-        }
-
-        html += `</div></div>`;
-      });
-
-      area.innerHTML = html;
-    }
-
-    function renderSeeds() {
-      const game = getSelectedGame();
-      const area = document.getElementById("seedsArea");
-      if (!game.seeds || game.seeds.length === 0) {
-        area.innerHTML = '<div class="border-2 border-dashed border-gray-800 rounded-xl p-8 text-center text-gray-500">No seeds yet.</div>';
-        return;
-      }
-
-      if (game.format === "groupStage" && game.groups) {
-        let html = '';
-        game.groups.forEach(group => {
-          html += `
-            <div class="mb-4">
-              <h3 class="text-lg font-bold text-purple-400 mb-2">${esc(group.name)}</h3>
-              <div class="overflow-hidden rounded-xl border border-gray-800">
-                <table class="w-full text-sm">
-                  <tbody>
-                    ${group.teams.map(t => {
-                      const seed = game.seeds.find(s => s.orgId === t.orgId);
-                      return `
-                        <tr class="border-t border-gray-800">
-                          <td class="p-3 font-black text-green-400">#${seed ? seed.seed : '?'}</td>
-                          <td class="p-3">${esc(t.name)}</td>
-                        </tr>
-                      `;
-                    }).join("")}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          `;
-        });
-        area.innerHTML = html;
-      } else {
-        area.innerHTML = `
-          <div class="overflow-hidden rounded-xl border border-gray-800">
-            <table class="w-full text-sm">
-              <thead class="bg-gray-800 text-gray-300">
-                <tr><th class="text-left p-3 w-20">Seed</th><th class="text-left p-3">Organisation</th></tr>
-              </thead>
-              <tbody>
-                ${game.seeds.map(s => `
-                  <tr class="border-t border-gray-800">
-                    <td class="p-3 font-black text-green-400">#${s.seed}</td>
-                    <td class="p-3">${esc(s.name)}</td>
-                  </tr>
-                `).join("")}
-              </tbody>
-            </table>
-          </div>
-        `;
-      }
-    }
-
-    function renderTeamSlot(slot) {
-      if (!slot || slot.bye) return '<span class="italic text-gray-500">BYE</span>';
-      if (slot.placeholder) return '<span class="italic text-amber-300">' + esc(slot.name) + "</span>";
-      return '<span class="font-bold text-white">#' + slot.seed + " " + esc(slot.name) + "</span>";
-    }
-
-    function renderFixtures() {
-      const game = getSelectedGame();
-      const area = document.getElementById("fixturesArea");
-      if (!game.fixtures) {
-        area.innerHTML = '<div class="border-2 border-dashed border-gray-800 rounded-xl p-8 text-center text-gray-500">Fixtures will appear after the draw.</div>';
-        return;
-      }
-
-      const formatName = game.fixtures.type === "knockout" ? "Knockout" : game.fixtures.type === "groupStage" ? "Group Stage" : "Round Robin";
-      let html = `
-        <div class="mb-5 bg-gray-800 border border-gray-700 rounded-xl p-4">
-          <p class="text-sm text-gray-400">Format</p>
-          <p class="font-bold text-white">${formatName}</p>
-        </div>
-      `;
-
-      game.fixtures.rounds.forEach((round, ri) => {
-        html += `<div class="mb-6"><h3 class="text-lg font-black text-purple-400 mb-3">${esc(round.name)}</h3><div class="space-y-3">`;
-
-        round.matches.forEach((match, mi) => {
-          const scoreA = match.result && match.result.scoreA !== null ? match.result.scoreA : "";
-          const scoreB = match.result && match.result.scoreB !== null ? match.result.scoreB : "";
-
-          let aClass = "bg-gray-900 border border-gray-700 rounded-lg p-3 flex items-center justify-between gap-2";
-          let bClass = "bg-gray-900 border border-gray-700 rounded-lg p-3 flex items-center justify-between gap-2";
-
-          if (match.result && match.result.scoreA !== null && match.result.scoreB !== null) {
-            if (match.result.scoreA > match.result.scoreB) { aClass += " winner-row"; bClass += " loser-row"; }
-            else if (match.result.scoreB > match.result.scoreA) { bClass += " winner-row"; aClass += " loser-row"; }
-          }
-
-          const scoreInputA = isAdmin && !match.bye
-            ? `<input type="number" min="0" value="${scoreA}" onchange="updateMatchResult(${ri}, ${mi}, 'scoreA', this.value)" class="score-input" />`
-            : (scoreA !== "" ? `<span class="font-black text-xl text-white">${scoreA}</span>` : "");
-          const scoreInputB = isAdmin && !match.bye
-            ? `<input type="number" min="0" value="${scoreB}" onchange="updateMatchResult(${ri}, ${mi}, 'scoreB', this.value)" class="score-input" />`
-            : (scoreB !== "" ? `<span class="font-black text-xl text-white">${scoreB}</span>` : "");
-
-          html += `
-            <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
-              <div class="flex items-center justify-between gap-3 mb-3">
-                <span class="text-xs bg-gray-900 border border-gray-700 px-2 py-1 rounded-full text-gray-300">${esc(match.label)}</span>
-                ${match.bye ? '<span class="text-xs text-yellow-400">BYE</span>' : ''}
-              </div>
-              <div class="space-y-2">
-                <div class="${aClass}">
-                  <span class="team-name text-sm">${renderTeamSlot(match.teamA)}</span>
-                  ${scoreInputA}
-                </div>
-                <div class="text-center text-xs text-gray-500 font-bold">VS</div>
-                <div class="${bClass}">
-                  <span class="team-name text-sm">${renderTeamSlot(match.teamB)}</span>
-                  ${scoreInputB}
-                </div>
-              </div>
-              ${match.note ? '<p class="text-xs text-yellow-400 mt-3">' + esc(match.note) + "</p>" : ""}
-            </div>
-          `;
-        });
-
-        html += `</div></div>`;
-      });
-
-      area.innerHTML = html;
-    }
-
-    function renderStandings() {
-      const game = getSelectedGame();
-      const section = document.getElementById("standingsSection");
-      const area = document.getElementById("standingsArea");
-
-      if (!game.fixtures) {
-        section.classList.add("hidden");
-        return;
-      }
-
-      if (game.fixtures.type === "groupStage") {
-        section.classList.remove("hidden");
-        const allStandings = calculateGroupStandings(game);
-        
-        if (allStandings.length === 0) {
-          area.innerHTML = '<p class="text-gray-500 text-center py-6">No standings yet.</p>';
-          return;
-        }
-
-        let html = '';
-        allStandings.forEach(groupData => {
-          html += `
-            <div class="mb-6">
-              <h3 class="text-lg font-bold text-purple-400 mb-3">${esc(groupData.groupName)} Standings</h3>
-              <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                  <thead class="bg-gray-800 text-gray-300">
-                    <tr>
-                      <th class="p-3 text-left">#</th>
-                      <th class="p-3 text-left">Organisation</th>
-                      <th class="p-3 text-center">P</th>
-                      <th class="p-3 text-center">W</th>
-                      <th class="p-3 text-center">D</th>
-                      <th class="p-3 text-center">L</th>
-                      <th class="p-3 text-center">GF</th>
-                      <th class="p-3 text-center">GA</th>
-                      <th class="p-3 text-center">GD</th>
-                      <th class="p-3 text-center">Pts</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-          `;
-
-          groupData.standings.forEach((t, i) => {
-            const gd = t.goalsFor - t.goalsAgainst;
-            const posClass = i === 0 ? "text-amber-400 font-black" : "text-gray-300";
-            html += `
-              <tr class="border-t border-gray-800">
-                <td class="p-3 ${posClass}">${i + 1}</td>
-                <td class="p-3 font-semibold">${esc(t.name)}</td>
-                <td class="p-3 text-center">${t.played}</td>
-                <td class="p-3 text-center text-green-400">${t.won}</td>
-                <td class="p-3 text-center text-gray-400">${t.drawn}</td>
-                <td class="p-3 text-center text-red-400">${t.lost}</td>
-                <td class="p-3 text-center">${t.goalsFor}</td>
-                <td class="p-3 text-center">${t.goalsAgainst}</td>
-                <td class="p-3 text-center">${gd > 0 ? "+" + gd : gd}</td>
-                <td class="p-3 text-center font-black text-white">${t.points}</td>
-              </tr>
-            `;
-          });
-
-          html += `</tbody></table></div></div>`;
-        });
-
-        area.innerHTML = html;
-      } else if (game.fixtures.type === "roundRobin") {
-        section.classList.remove("hidden");
-        const standings = calculateRoundRobinStandings(game);
-        
-        if (standings.length === 0) {
-          area.innerHTML = '<p class="text-gray-500 text-center py-6">No standings yet.</p>';
-          return;
-        }
-
-        let html = `
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="bg-gray-800 text-gray-300">
-                <tr>
-                  <th class="p-3 text-left">#</th>
-                  <th class="p-3 text-left">Organisation</th>
-                  <th class="p-3 text-center">P</th>
-                  <th class="p-3 text-center">W</th>
-                  <th class="p-3 text-center">D</th>
-                  <th class="p-3 text-center">L</th>
-                  <th class="p-3 text-center">GF</th>
-                  <th class="p-3 text-center">GA</th>
-                  <th class="p-3 text-center">GD</th>
-                  <th class="p-3 text-center">Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-        `;
-
-        standings.forEach((t, i) => {
-          const gd = t.goalsFor - t.goalsAgainst;
-          const posClass = i === 0 ? "text-amber-400 font-black" : "text-gray-300";
-          html += `
-            <tr class="border-t border-gray-800">
-              <td class="p-3 ${posClass}">${i + 1}</td>
-              <td class="p-3 font-semibold">${esc(t.name)}</td>
-              <td class="p-3 text-center">${t.played}</td>
-              <td class="p-3 text-center text-green-400">${t.won}</td>
-              <td class="p-3 text-center text-gray-400">${t.drawn}</td>
-              <td class="p-3 text-center text-red-400">${t.lost}</td>
-              <td class="p-3 text-center">${t.goalsFor}</td>
-              <td class="p-3 text-center">${t.goalsAgainst}</td>
-              <td class="p-3 text-center">${gd > 0 ? "+" + gd : gd}</td>
-              <td class="p-3 text-center font-black text-white">${t.points}</td>
-            </tr>
-          `;
-        });
-
-        html += `</tbody></table></div>`;
-        area.innerHTML = html;
-      } else {
-        section.classList.add("hidden");
-      }
-    }
-
-    function fixturesAsText() {
-      const game = getSelectedGame();
-      if (!game.fixtures) return "No fixtures yet.";
-      const lines = [state.tournamentName, "Game: " + game.name, ""];
-      lines.push("SEEDS");
-      game.seeds.forEach(s => lines.push("#" + s.seed + " " + s.name));
-      lines.push("");
-      lines.push("FIXTURES");
-      game.fixtures.rounds.forEach(r => {
-        lines.push("");
-        lines.push(r.name);
-        r.matches.forEach(m => {
-          const a = m.teamA.bye ? "BYE" : m.teamA.seed ? "#" + m.teamA.seed + " " + m.teamA.name : m.teamA.name;
-          const b = m.teamB.bye ? "BYE" : m.teamB.seed ? "#" + m.teamB.seed + " " + m.teamB.name : m.teamB.name;
-          let res = "";
-          if (m.result && m.result.scoreA !== null && m.result.scoreB !== null) {
-            res = " [" + m.result.scoreA + " - " + m.result.scoreB + "]";
-          }
-          lines.push(m.label + ": " + a + " vs " + b + res);
-        });
-      });
-      return lines.join("\n");
-    }
-
-    function copyFixtures() {
-      navigator.clipboard.writeText(fixturesAsText())
-        .then(() => alert("Copied."))
-        .catch(() => alert("Copy failed."));
-    }
-
-    document.addEventListener("keydown", (e) => {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-      if (e.key === "Enter" && document.activeElement.id === "singleOrganisation") addSingleOrganisation();
-      if (e.key === "Enter" && document.activeElement.id === "newGameName") addGame();
-    });
-
-    updateModeUI();
-    initTournament();
-  </script>
+  <script src="utils.js"></script>
+  <script src="fixtures.js"></script>
+  <script src="app.js"></script>
+  <script src="dashboard.js"></script>
+  <script src="game-view.js"></script>
 </body>
 </html>

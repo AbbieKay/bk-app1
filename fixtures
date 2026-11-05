@@ -1,0 +1,126 @@
+function makeMatch(round, number, teamA, teamB, groupName) {
+  const a = teamA || byeSlot();
+  const b = teamB || byeSlot();
+  const isBye = a.bye || b.bye;
+  let note = "";
+  if (isBye && !a.bye) note = a.name + " advances automatically.";
+  if (isBye && !b.bye) note = b.name + " advances automatically.";
+  return {
+    id: "R" + round + "M" + number, label: "R" + round + " M" + number,
+    round, number, teamA: a, teamB: b, bye: isBye, note, result: null,
+    groupName: groupName || null
+  };
+}
+
+function nextPowerOfTwo(n) { let s = 1; while (s < n) s *= 2; return s; }
+
+function standardSeedOrder(size) {
+  let order = [1];
+  while (order.length < size) {
+    const next = [];
+    const total = order.length * 2 + 1;
+    order.forEach(seed => { next.push(seed); next.push(total - seed); });
+    order = next;
+  }
+  return order;
+}
+
+function knockoutRoundName(matchCount) {
+  if (matchCount === 1) return "Final";
+  if (matchCount === 2) return "Semi-finals";
+  if (matchCount === 4) return "Quarter-finals";
+  return "Round of " + matchCount * 2;
+}
+
+function generateKnockoutFixtures(seeds) {
+  const bracketSize = nextPowerOfTwo(seeds.length);
+  const order = standardSeedOrder(bracketSize);
+  const slots = order.map(n => {
+    const s = seeds[n - 1];
+    return s ? seedSlot(s) : null;
+  });
+
+  const rounds = [];
+  let currentRound = [];
+  for (let i = 0; i < slots.length; i += 2) {
+    currentRound.push(makeMatch(1, i / 2 + 1, slots[i], slots[i + 1]));
+  }
+  rounds.push({ name: knockoutRoundName(currentRound.length), matches: currentRound });
+
+  let prev = currentRound;
+  let rn = 2;
+  while (prev.length > 1) {
+    const next = [];
+    for (let i = 0; i < prev.length; i += 2) {
+      const tA = { name: "Winner " + prev[i].label, seed: null, placeholder: true, bye: false };
+      const tB = { name: "Winner " + prev[i + 1].label, seed: null, placeholder: true, bye: false };
+      next.push(makeMatch(rn, i / 2 + 1, tA, tB));
+    }
+    rounds.push({ name: knockoutRoundName(next.length), matches: next });
+    prev = next;
+    rn++;
+  }
+  return { type: "knockout", bracketSize, rounds };
+}
+
+function generateRoundRobinFixtures(seeds) {
+  let teams = seeds.map(seedSlot);
+  if (teams.length % 2 !== 0) teams.push(byeSlot());
+  const totalRounds = teams.length - 1;
+  const rounds = [];
+  let rotation = [...teams];
+  for (let round = 1; round <= totalRounds; round++) {
+    const matches = [];
+    let mn = 1;
+    for (let i = 0; i < rotation.length / 2; i++) {
+      const a = rotation[i];
+      const b = rotation[rotation.length - 1 - i];
+      if (!a.bye && !b.bye) { matches.push(makeMatch(round, mn, a, b)); mn++; }
+    }
+    rounds.push({ name: "Round " + round, matches });
+    rotation = [rotation[0], rotation[rotation.length - 1], ...rotation.slice(1, -1)];
+  }
+  return { type: "roundRobin", rounds };
+}
+
+function generateFixtures(game) {
+  if (game.format === "roundRobin") return generateRoundRobinFixtures(game.seeds);
+  return generateKnockoutFixtures(game.seeds);
+}
+
+function generateFixturesFromGroups(game) {
+  if (!game.groups || game.groups.length === 0) return;
+  
+  let seedCounter = 1;
+  game.seeds = [];
+  game.groups.forEach(group => {
+    group.teams.forEach(team => {
+      game.seeds.push({
+        seed: seedCounter++,
+        orgId: team.orgId,
+        name: team.name
+      });
+    });
+  });
+  
+  const allRounds = [];
+  game.groups.forEach((group, groupIndex) => {
+    if (group.teams.length < 2) return;
+    
+    const groupFixtures = generateRoundRobinFixtures(group.teams.map(t => ({
+      seed: game.seeds.find(s => s.orgId === t.orgId).seed,
+      orgId: t.orgId,
+      name: t.name
+    })));
+    
+    groupFixtures.rounds.forEach(round => {
+      round.name = group.name + " - " + round.name;
+      round.groupIndex = groupIndex;
+      round.groupName = group.name;
+    });
+    
+    allRounds.push(...groupFixtures.rounds);
+  });
+  
+  return { type: "groupStage", rounds: allRounds, groups: game.groups };
+}
