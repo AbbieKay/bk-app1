@@ -1,3 +1,5 @@
+// fixtures.js - All fixture generation logic
+
 function makeMatch(round, number, teamA, teamB, groupName) {
   const a = teamA || byeSlot();
   const b = teamB || byeSlot();
@@ -6,20 +8,34 @@ function makeMatch(round, number, teamA, teamB, groupName) {
   if (isBye && !a.bye) note = a.name + " advances automatically.";
   if (isBye && !b.bye) note = b.name + " advances automatically.";
   return {
-    id: "R" + round + "M" + number, label: "R" + round + " M" + number,
-    round, number, teamA: a, teamB: b, bye: isBye, note, result: null,
+    id: "R" + round + "M" + number,
+    label: "R" + round + " M" + number,
+    round: round,
+    number: number,
+    teamA: a,
+    teamB: b,
+    bye: isBye,
+    note: note,
+    result: null,
     groupName: groupName || null
   };
 }
 
-function nextPowerOfTwo(n) { let s = 1; while (s < n) s *= 2; return s; }
+function nextPowerOfTwo(n) {
+  let s = 1;
+  while (s < n) s *= 2;
+  return s;
+}
 
 function standardSeedOrder(size) {
   let order = [1];
   while (order.length < size) {
     const next = [];
     const total = order.length * 2 + 1;
-    order.forEach(seed => { next.push(seed); next.push(total - seed); });
+    order.forEach(seed => {
+      next.push(seed);
+      next.push(total - seed);
+    });
     order = next;
   }
   return order;
@@ -60,7 +76,7 @@ function generateKnockoutFixtures(seeds) {
     prev = next;
     rn++;
   }
-  return { type: "knockout", bracketSize, rounds };
+  return { type: "knockout", bracketSize: bracketSize, rounds: rounds };
 }
 
 function generateRoundRobinFixtures(seeds) {
@@ -75,12 +91,15 @@ function generateRoundRobinFixtures(seeds) {
     for (let i = 0; i < rotation.length / 2; i++) {
       const a = rotation[i];
       const b = rotation[rotation.length - 1 - i];
-      if (!a.bye && !b.bye) { matches.push(makeMatch(round, mn, a, b)); mn++; }
+      if (!a.bye && !b.bye) {
+        matches.push(makeMatch(round, mn, a, b));
+        mn++;
+      }
     }
-    rounds.push({ name: "Round " + round, matches });
+    rounds.push({ name: "Round " + round, matches: matches });
     rotation = [rotation[0], rotation[rotation.length - 1], ...rotation.slice(1, -1)];
   }
-  return { type: "roundRobin", rounds };
+  return { type: "roundRobin", rounds: rounds };
 }
 
 function generateFixtures(game) {
@@ -89,8 +108,8 @@ function generateFixtures(game) {
 }
 
 function generateFixturesFromGroups(game) {
-  if (!game.groups || game.groups.length === 0) return;
-  
+  if (!game.groups || game.groups.length === 0) return null;
+
   let seedCounter = 1;
   game.seeds = [];
   game.groups.forEach(group => {
@@ -102,25 +121,25 @@ function generateFixturesFromGroups(game) {
       });
     });
   });
-  
+
   const allRounds = [];
   game.groups.forEach((group, groupIndex) => {
     if (group.teams.length < 2) return;
-    
+
     const groupFixtures = generateRoundRobinFixtures(group.teams.map(t => ({
       seed: game.seeds.find(s => s.orgId === t.orgId).seed,
       orgId: t.orgId,
       name: t.name
     })));
-    
+
     groupFixtures.rounds.forEach(round => {
       round.name = group.name + " - " + round.name;
       round.groupIndex = groupIndex;
       round.groupName = group.name;
     });
-    
+
     allRounds.push(...groupFixtures.rounds);
   });
-  
+
   return { type: "groupStage", rounds: allRounds, groups: game.groups };
 }
